@@ -1,0 +1,10 @@
+psycopg2
+spaCy
+rapidfuzz
+pandas
+phonetics
+sentence-transformers
+streamlit
+geopy
+folium
+streamlit_folium
