@@ -6,6 +6,40 @@ from db import Database
 from geopy.geocoders import Nominatim
 import folium
 from streamlit_folium import st_folium
+import base64
+
+# --- Function to set the background image ---
+def set_background(image_file):
+    """
+    Sets the background image of the Streamlit app using base64 encoding.
+    """
+    try:
+        # 1. Read the image file and encode it to Base64
+        with open(image_file, "rb") as f:
+            img_bytes = f.read()
+        encoded_string = base64.b64encode(img_bytes).decode()
+
+        # 2. Inject CSS with the Base64 image
+        st.markdown(
+            f"""
+            <style>
+            .stApp {{
+                background-image: url("data:image/jpeg;base64,{encoded_string}");
+                background-size: cover; /* Cover the entire page */
+                background-repeat: no-repeat; /* No tiling */
+                background-attachment: fixed; /* Fixed background */
+            }}
+            </style>
+            """,
+            unsafe_allow_html=True
+        )
+    except FileNotFoundError:
+        st.error(f"Background image file not found: {image_file}")
+    except Exception as e:
+        st.error(f"Error setting background image: {e}")
+
+# 3. Call the function before any other Streamlit component
+set_background('bg-img.jpg')
 
 CONFIDENCE_THRESHOLD = 0.8
 
@@ -69,11 +103,9 @@ def resolve_places(places, canonical_tables, matcher):
 
 # --- Initialize once ---
 db = get_db()
-st.success("✅ Database connected successfully")
 
 canonical_tables = load_canonical_tables(db)  # db gets passed as _db internally
 matcher = get_semantic_matcher(canonical_tables)
-st.success("💾 Cached embeddings for semantic matcher.")
 
 
 
@@ -113,16 +145,6 @@ if "resolved_results" in st.session_state:
             else:
                 bg_color = "#F8D7DA"
 
-            st.markdown(
-                f"""
-                <div style="background-color:{bg_color}; padding:10px; border-radius:5px; margin-bottom:5px;">
-                    <b>Token:</b> {token} | <b>Canonical:</b> {canonical} | <b>Table:</b> {table} | 
-                    <b>Score:</b> {score} | <b>Source:</b> {source} | <b>Warning:</b> {warning}
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
-
         # --- Map visualization ---
         st.subheader("📍 Map of Resolved Places")
         m = folium.Map(location=[20, 0], zoom_start=2)
@@ -131,7 +153,7 @@ if "resolved_results" in st.session_state:
         for r in resolved:
             if r["canonical"]:
                 try:
-                    location = geolocator.geocode(r["canonical"])
+                    location = geolocator.geocode(r["canonical"], timeout=100)
                     if location:
                         color = "green" if not r["warning"] else "orange"
                         folium.CircleMarker(
