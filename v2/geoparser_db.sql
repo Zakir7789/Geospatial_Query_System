@@ -41,3 +41,8 @@ CREATE TABLE aliases (
   source TEXT,
   created_at TIMESTAMP DEFAULT now()
 );
+
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+CREATE INDEX IF NOT EXISTS idx_aliases_trgm ON aliases USING gin (alias gin_trgm_ops);
+
+
