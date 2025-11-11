@@ -1,0 +1,9 @@
+pandas
+requests
+zipfile36
+psycopg2-binary
+tabulate
+spacy
+rapidfuzz
+sentence-transformers
+torch
