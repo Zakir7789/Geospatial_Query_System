@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Geospatial Query System</title>
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>🌍 Geospatial Query System</h1>
+            <p>Enter a query to extract, resolve, and visualize place names on a map.</p>
+        </header>
+
+        <main class="main-content">
+            <div class="sidebar">
+                <textarea id="query-input"
+                    placeholder="e.g., Which of the following saw the highest average temperature in January, Maharashtra, Ahmedabad or entire New Zealand ?"></textarea>
+                <button id="resolve-button">Resolve</button>
+                <div class="results-box">
+                    <h3>Resolved Places</h3>
+                    <div id="results-container">
+                        <p class="placeholder">Results will appear here...</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="map-container">
+                <div id="map"></div>
+            </div>
+        </main>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script src="/static/script.js"></script>
+</body>
+
+</html>

@@ -9,7 +9,8 @@ def connect_db():
             database="geospatial_db",
             user="postgres",
             password="admin123",
-            port=5432
+            port=5432,
+            client_encoding='UTF8' 
         )
         print("[INFO] Database connection established.")
         return conn
