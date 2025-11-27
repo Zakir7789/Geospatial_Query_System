@@ -3,10 +3,10 @@ import json
 import os
 from dotenv import load_dotenv
 from flask import Flask, jsonify, request, render_template, send_from_directory
-from nlp.canonical_mapper import process_query
+from nlp.pipeline_v1 import process_query
 from scripts.db_config import connect_db
 
-load_dotenv() # Load .env file
+load_dotenv()  # Load .env file
 
 # --- 1. Initialization (Runs once on startup) ---
 print("Initializing backend...")
@@ -24,6 +24,7 @@ print("✅ Backend ready.")
 
 app = Flask(__name__, static_folder='static', template_folder='.')
 
+
 # --- Frontend Routes ---
 @app.route('/')
 def index():
@@ -31,10 +32,12 @@ def index():
     # We no longer pass the API key
     return render_template('index.html')
 
+
 @app.route('/static/<path:path>')
 def send_static(path):
     """Serves the static files (css, js)."""
     return send_from_directory('static', path)
+
 
 # --- The Main API Endpoint ---
 @app.route('/api/resolve', methods=['POST'])
@@ -45,7 +48,7 @@ def api_resolve_places():
 
     query_text = data['query']
     conn = None
-    
+
     try:
         conn = connect_db()
         if conn is None:
@@ -53,7 +56,7 @@ def api_resolve_places():
 
         # 1. Use canonical_mapper.py to get resolved places
         canonical_json = process_query(query_text)
-        
+
         if 'results' not in canonical_json:
             return jsonify({
                 "resolved_places": [],
@@ -86,11 +89,12 @@ def api_resolve_places():
     except Exception as e:
         print(f"Error during query processing: {e}")
         return jsonify({"error": str(e)}), 500
-        
+
     finally:
         if conn:
             conn.close()
             print("[INFO] Database connection closed.")
+
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
