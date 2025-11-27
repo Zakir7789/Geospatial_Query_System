@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GeoAnalytics Dashboard</title>
+    
+    <!-- Modern Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../static/style.css">
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Google Maps API -->
+    <!-- REPLACE YOUR_API_KEY_HERE -->
+    <script async
+        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDg8FpdYUn5JpbaW38Ob8c3vwSROvtZJbQ&callback=initMap">
+    </script>
+    <script src="../static/script.js" defer></script>
+</head>
+<body>
+
+    <!-- Floating Search Bar -->
+    <div class="search-overlay">
+        <div class="search-box">
+            <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input type="text" id="search-input" placeholder="Compare locations (e.g., 'India vs Australia', 'USA and Canada')...">
+            <button id="search-button">Analyze</button>
+        </div>
+    </div>
+
+    <!-- Top Section: Map -->
+    <div id="map-section">
+        <div id="map"></div>
+        <div id="map-tooltip" class="hidden">Click highlighted area to view data</div>
+    </div>
+
+    <!-- Bottom Section: Dashboard -->
+    <div id="dashboard-section">
+        
+        <!-- Empty State -->
+        <div id="empty-state">
+            <div class="empty-icon">🌍</div>
+            <h3>Ready to Explore</h3>
+            <p>Search for multiple locations. They will be highlighted on the map.<br>Click a specific highlighted area to see its data below.</p>
+        </div>
+
+        <!-- Data Content -->
+        <div id="data-content" class="hidden">
+            <div class="dashboard-header">
+                <div>
+                    <h1 id="city-name">Location Name</h1>
+                    <span id="current-date">--</span>
+                </div>
+                <div class="status-badge" id="loading-indicator">
+                    <span class="dot"></span> Live Data
+                </div>
+            </div>
+
+            <div class="grid-layout">
+                <!-- Weather Card -->
+                <div class="card weather-card">
+                    <div class="weather-row">
+                        <div class="weather-icon" id="main-icon">🌤️</div>
+                        <div class="temp-group">
+                            <span id="current-temp">--°</span>
+                            <span id="weather-desc">--</span>
+                        </div>
+                    </div>
+                    <div class="forecast-strip" id="forecast-container"></div>
+                </div>
+
+                <!-- Chart Card -->
+                <div class="card chart-card">
+                    <div class="card-header">
+                        <h3>Temperature Trend</h3>
+                        <span class="card-sub">Next 12 Hours</span>
+                    </div>
+                    <div class="chart-wrapper">
+                        <canvas id="hourlyChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Stats Grid -->
+                <div class="stats-column">
+                    <div class="stat-card">
+                        <div class="stat-icon wind">💨</div>
+                        <div class="stat-info">
+                            <span class="label">Wind Speed</span>
+                            <span class="value" id="wind-speed-text">--</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon humidity">💧</div>
+                        <div class="stat-info">
+                            <span class="label">Humidity</span>
+                            <span class="value" id="humidity-val">--</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon aqi">🌫️</div>
+                        <div class="stat-info">
+                            <span class="label">Air Quality</span>
+                            <span class="value" id="aqi-text">--</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>
