@@ -7,3 +7,4 @@ spacy
 rapidfuzz
 sentence-transformers
 torch
+Flask

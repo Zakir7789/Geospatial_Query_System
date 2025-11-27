@@ -1,5 +1,5 @@
 """
-canonical_mapper.py
+canonical_mapper_v1.py
 -------------------
 Identifies and resolves place names from a natural language sentence
 using fuzzy matching against canonical tables (countries, states, cities).
@@ -98,6 +98,6 @@ def process_query(sentence: str):
 
 # Example usage
 if __name__ == "__main__":
-    query = "Which of the following saw the highest average temperature in January, India Gate, Maharashtra, Ahmedabad, cote d ivore or entire New Zealand ?"
+    query = "Which of the following saw the highest average temperature in January, Georgia, Maharashtra, Ahmedabad, cote d ivore or entire New Zealand ?"
     output = process_query(query)
     print(output)

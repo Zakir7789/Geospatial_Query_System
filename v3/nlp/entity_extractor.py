@@ -1,4 +1,4 @@
-# nlp/entity_extractor.py
+# nlp/entity_extractor_v1.py
 import spacy
 
 nlp = spacy.load("en_core_web_trf")
