@@ -7,9 +7,7 @@ let countryLayer, stateLayer, cityLayer;
 // --- ROUTING SERVICES ---
 let directionsService;
 let directionsRenderer;
-let flightPaths = []; // Changed to Array to hold multiple segments
-
-// Store current route list (Ordered)
+let flightPaths = [];
 let currentLocations = [];
 
 const activeStyle = {
@@ -30,12 +28,8 @@ function initMap() {
     });
 
     geocoder = new google.maps.Geocoder();
-
     directionsService = new google.maps.DirectionsService();
-    directionsRenderer = new google.maps.DirectionsRenderer({
-        map: map,
-        suppressMarkers: false // Google puts markers A/B, we might add intermediate ones
-    });
+    directionsRenderer = new google.maps.DirectionsRenderer({ map: map, suppressMarkers: false });
 
     // Layers & Styles
     countryLayer = map.getFeatureLayer('COUNTRY');
@@ -50,21 +44,21 @@ function initMap() {
         if (e.key === 'Enter') performSearch();
     });
 
-    // Mode Button Logic
+    // Mode Buttons
     document.querySelectorAll('.mode-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
             document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
-            const target = e.currentTarget;
-            target.classList.add('active');
-
-            const mode = target.getAttribute('data-mode');
-
-            if (currentLocations.length >= 2) {
-                // Pass 'false' to indicate this is a MANUAL click (don't auto-switch)
-                calculateRoute(currentLocations, mode, false);
-            }
+            e.currentTarget.classList.add('active');
+            const mode = e.currentTarget.getAttribute('data-mode');
+            if (currentLocations.length >= 2) calculateRoute(currentLocations, mode, false);
         });
     });
+}
+
+// --- GLOBAL: Close Info Card ---
+window.closeInfoCard = function () {
+    const card = document.getElementById('info-card');
+    if (card) card.classList.remove('active');
 }
 
 // --- MAIN SEARCH ---
@@ -77,6 +71,7 @@ async function performSearch() {
 
     btn.innerText = "Processing...";
     btn.disabled = true;
+    closeInfoCard();
 
     try {
         const response = await fetch('/api/resolve', {
@@ -88,37 +83,42 @@ async function performSearch() {
 
         clearMap();
 
-        // 1. ROUTE MODE (2 or more locations)
+        // --- 1. ROUTE MODE (Prioritize Routing if requested) ---
         if (data.intent === 'ROUTE' && data.results.length >= 2) {
-
-            // Extract just the names in order
             currentLocations = data.results.map(r => r.city_name);
             console.log(`Routing via: ${currentLocations.join(' -> ')}`);
 
-            // Show Selector
             document.getElementById('mode-selector').style.display = 'flex';
-
-            // Default to Driving, allowing auto-switch (isAutoSwitchAllowed = true)
             switchModeButton('DRIVING');
             calculateRoute(currentLocations, 'DRIVING', true);
 
         } else {
-            // 2. NORMAL SEARCH
+            // --- 2. INFO / NORMAL MODE ---
             document.getElementById('mode-selector').style.display = 'none';
-            const statsBox = document.getElementById('route-stats');
-            statsBox.style.display = 'none';
-            statsBox.classList.add('hidden');
+            document.getElementById('route-stats').classList.remove('show-stats');
+
             const bounds = new google.maps.LatLngBounds();
             const promises = [];
-            const list = (data.results && data.results.length > 0) ? data.results.map(l => l.city_name) : [query];
 
-            for (const loc of list) {
-                promises.push(geocodeAndHighlight(loc, bounds));
+            // Loop through results (e.g. Bangalore, Mysore)
+            for (const loc of data.results) {
+                // Pass the specific answer/summary for THIS location to the helper
+                promises.push(geocodeAndHighlight(loc.city_name, bounds, loc.ai_answer, loc.ai_summary));
             }
 
             const results = await Promise.all(promises);
-            if (!results.includes(true)) alert("No location found.");
-            else if (!bounds.isEmpty()) map.fitBounds(bounds);
+
+            if (!results.includes(true)) {
+                alert("No location found.");
+            } else if (!bounds.isEmpty()) {
+                map.fitBounds(bounds);
+
+                // If there is exactly one location, open its card automatically
+                if (data.results.length === 1) {
+                    const loc = data.results[0];
+                    showInfoCard(loc.city_name, loc.ai_answer, loc.ai_summary);
+                }
+            }
         }
 
     } catch (e) {
@@ -130,35 +130,44 @@ async function performSearch() {
     }
 }
 
-// --- ROUTING LOGIC (Handles Waypoints) ---
-function calculateRoute(locationList, mode, isAutoSwitchAllowed) {
+// --- INFO CARD FUNCTION ---
+function showInfoCard(title, answer, summary) {
+    const card = document.getElementById('info-card');
+    if (!card) return;
 
-    // Clear old visual artifacts
+    document.getElementById('info-title').innerText = title;
+
+    // Logic: Use Answer if available, else Summary, else Default text
+    let content = answer;
+    if (!content && summary) content = summary;
+    if (!content) content = "Location identified.";
+
+    document.getElementById('info-answer').innerText = content;
+    // Show summary as subtext only if we have both answer AND summary
+    document.getElementById('info-summary').innerText = (answer && summary) ? summary : "";
+
+    card.classList.add('active');
+}
+
+// --- ROUTING LOGIC ---
+function calculateRoute(locationList, mode, isAutoSwitchAllowed) {
     flightPaths.forEach(p => p.setMap(null));
     flightPaths = [];
     directionsRenderer.setMap(null);
 
-    // 1. AIR MODE (Geodesic Flight Path)
     if (mode === 'AIR') {
         drawMultiHopAirRoute(locationList);
         return;
     }
 
-    // 2. ROAD/WALK MODE
     directionsRenderer.setMap(map);
-
-    // Setup Origin, Destination, and Waypoints
     const origin = locationList[0];
     const destination = locationList[locationList.length - 1];
 
     const waypoints = [];
-    // If there are middle cities, add them as waypoints
     if (locationList.length > 2) {
         for (let i = 1; i < locationList.length - 1; i++) {
-            waypoints.push({
-                location: locationList[i],
-                stopover: true
-            });
+            waypoints.push({ location: locationList[i], stopover: true });
         }
     }
 
@@ -166,124 +175,67 @@ function calculateRoute(locationList, mode, isAutoSwitchAllowed) {
         origin: origin,
         destination: destination,
         waypoints: waypoints,
-        optimizeWaypoints: false, // Keep the user's order (Bangalore -> Mumbai -> Delhi)
+        optimizeWaypoints: false,
         travelMode: google.maps.TravelMode[mode]
     }, (response, status) => {
         if (status === 'OK') {
-            // Success
             directionsRenderer.setDirections(response);
-
-            // Calculate Total Distance/Time across all legs
-            let totalDistMeters = 0;
-            let totalSeconds = 0;
-
+            let totalDist = 0, totalSec = 0;
             response.routes[0].legs.forEach(leg => {
-                totalDistMeters += leg.distance.value;
-                totalSeconds += leg.duration.value;
+                totalDist += leg.distance.value;
+                totalSec += leg.duration.value;
             });
-
-            updateStatsFormatted(totalDistMeters, totalSeconds);
-
-        } else if (status === 'ZERO_RESULTS') {
-            // FAILURE CASE
-            if (isAutoSwitchAllowed && mode === 'DRIVING') {
-                // Only switch automatically on the FIRST load
-                console.warn("Road not possible. Auto-switching to AIR.");
-                switchModeButton('AIR');
-                drawMultiHopAirRoute(locationList);
-            } else {
-                // Manual click failure -> Show Error
-                alert("No route found for this mode. Try Air travel.");
-            }
+            updateStatsFormatted(totalDist, totalSec);
+        } else if (status === 'ZERO_RESULTS' && isAutoSwitchAllowed && mode === 'DRIVING') {
+            switchModeButton('AIR');
+            drawMultiHopAirRoute(locationList);
         } else {
-            window.alert('Directions request failed: ' + status);
+            alert('No route found for this mode.');
         }
     });
 }
 
-// Helper: Multi-Hop Air Route (A->B, B->C)
+// --- HELPER: Air Route ---
 async function drawMultiHopAirRoute(locations) {
     const bounds = new google.maps.LatLngBounds();
     let totalDistKm = 0;
-
-    // We need to resolve coordinates for ALL locations first
     const coords = [];
+
     for (const locName of locations) {
         const c = await geocodeLocation(locName);
-        if (c) {
-            coords.push(c);
-            bounds.extend(c);
-        }
+        if (c) { coords.push(c); bounds.extend(c); }
     }
-
     if (coords.length < 2) return;
 
-    // Draw lines between sequential points
     for (let i = 0; i < coords.length - 1; i++) {
-        const start = coords[i];
-        const end = coords[i + 1];
-
-        // Draw Line
+        const start = coords[i], end = coords[i + 1];
         const line = new google.maps.Polyline({
-            path: [start, end],
-            geodesic: true, // Curve
-            strokeColor: '#ef4444',
-            strokeOpacity: 0.8,
-            strokeWeight: 4,
-            icons: [{
-                icon: {
-                    path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
-                    scale: 4,
-                    strokeColor: '#fff',
-                    fillColor: '#ef4444',
-                    fillOpacity: 1
-                },
-                offset: '50%'
-            }],
+            path: [start, end], geodesic: true, strokeColor: '#ef4444', strokeOpacity: 0.8, strokeWeight: 4,
+            icons: [{ icon: { path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW, scale: 4, strokeColor: '#fff', fillColor: '#ef4444', fillOpacity: 1 }, offset: '50%' }],
             map: map
         });
         flightPaths.push(line);
-
-        // Calculate Distance
-        const distMeters = google.maps.geometry.spherical.computeDistanceBetween(start, end);
-        totalDistKm += (distMeters / 1000);
+        totalDistKm += (google.maps.geometry.spherical.computeDistanceBetween(start, end) / 1000);
     }
-
     map.fitBounds(bounds);
 
-    // Calculate Estimated Duration (Total Distance / 800kmh + 1hr per stop)
-    // 1 Stop = 60 mins, 2 Stops = 120 mins logistics time
     const flightHours = totalDistKm / 800;
-    const logisticsMinutes = (locations.length - 1) * 60;
-
-    const totalMinutes = Math.round((flightHours * 60) + logisticsMinutes);
-
-    // Format Display
-    const h = Math.floor(totalMinutes / 60);
-    const m = totalMinutes % 60;
-    const timeStr = h > 0 ? `~${h} hr ${m} min` : `~${m} min`;
-
-    updateStatsText(`${Math.round(totalDistKm).toLocaleString()} km`, timeStr);
+    const totalMinutes = Math.round((flightHours * 60) + ((locations.length - 1) * 60));
+    const h = Math.floor(totalMinutes / 60), m = totalMinutes % 60;
+    updateStatsText(`${Math.round(totalDistKm).toLocaleString()} km`, h > 0 ? `~${h} hr ${m} min` : `~${m} min`);
 }
 
 function updateStatsFormatted(meters, seconds) {
     const km = (meters / 1000).toFixed(1);
-
-    const h = Math.floor(seconds / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-
-    const timeStr = h > 0 ? `${h} hr ${m} min` : `${m} min`;
-    updateStatsText(`${km} km`, timeStr);
+    const h = Math.floor(seconds / 3600), m = Math.floor((seconds % 3600) / 60);
+    updateStatsText(`${km} km`, h > 0 ? `${h} hr ${m} min` : `${m} min`);
 }
 
 function updateStatsText(dist, time) {
     const statsBox = document.getElementById('route-stats');
-    
     document.getElementById('route-dist').innerText = dist;
     document.getElementById('route-time').innerText = time;
-    
     statsBox.classList.remove('hidden');
-    
     statsBox.classList.add('show-stats');
 }
 
@@ -296,14 +248,13 @@ function switchModeButton(mode) {
 function geocodeLocation(address) {
     return new Promise((resolve) => {
         geocoder.geocode({ address: address }, (results, status) => {
-            if (status === 'OK') resolve(results[0].geometry.location);
-            else resolve(null);
+            if (status === 'OK') resolve(results[0].geometry.location); else resolve(null);
         });
     });
 }
 
-// --- STANDARD MAP FUNCTIONS ---
-function geocodeAndHighlight(address, bounds) {
+// --- UPDATED HELPER: Accepts Info Data ---
+function geocodeAndHighlight(address, bounds, aiAnswer, aiSummary) {
     return new Promise((resolve) => {
         geocoder.geocode({ address: address }, (results, status) => {
             if (status === 'OK' && results[0]) {
@@ -312,8 +263,18 @@ function geocodeAndHighlight(address, bounds) {
                 else bounds.extend(res.geometry.location);
 
                 const marker = new google.maps.Marker({
-                    map: map, position: res.geometry.location, title: address, animation: google.maps.Animation.DROP
+                    map: map,
+                    position: res.geometry.location,
+                    title: address,
+                    animation: google.maps.Animation.DROP
                 });
+
+                // --- CLICK LISTENER ---
+                // Clicking the marker opens the card for THIS specific place
+                marker.addListener('click', () => {
+                    showInfoCard(address, aiAnswer, aiSummary);
+                });
+
                 markers.push(marker);
 
                 if (res.place_id) highlightedPlaceIds.add(res.place_id);
@@ -331,12 +292,13 @@ function clearMap() {
     markers = [];
     highlightedPlaceIds.clear();
     applyStyles();
-    directionsRenderer.setDirections({routes: []});
+    directionsRenderer.setDirections({ routes: [] });
     flightPaths.forEach(p => p.setMap(null));
     flightPaths = [];
-    
-    const statsBox = document.getElementById('route-stats');
-    statsBox.classList.remove('show-stats');
+
+    // Reset UI
+    document.getElementById('route-stats').classList.remove('show-stats');
+    closeInfoCard();
 }
 
 function applyStyles() {

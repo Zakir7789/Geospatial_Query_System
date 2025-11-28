@@ -48,14 +48,20 @@
         </div>
     </div>
 
-
     <!-- Top Section: Map -->
     <div id="map-section">
         <div id="map"></div>
         <div id="map-tooltip" class="hidden">Click highlighted area to view data</div>
     </div>
 
-
+    <div id="info-card" class="hidden">
+        <div class="info-header">
+            <h2 id="info-title">Location Name</h2>
+            <button id="close-info" onclick="closeInfoCard()">×</button>
+        </div>
+        <p id="info-answer" class="highlight-text">Direct Answer goes here...</p>
+        <p id="info-summary" class="sub-text">Interesting fact goes here...</p>
+    </div>
 
 </body>
 

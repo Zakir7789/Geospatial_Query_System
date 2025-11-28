@@ -7,7 +7,9 @@
     --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }
 
-* { box-sizing: border-box; }
+* {
+    box-sizing: border-box;
+}
 
 body {
     margin: 0;
@@ -15,7 +17,8 @@ body {
     font-family: 'Inter', sans-serif;
     background: var(--bg-app);
     color: var(--text-main);
-    overflow: hidden; /* Prevent scrolling */
+    overflow: hidden;
+    /* Prevent scrolling */
 }
 
 /* --- Map Section (Full Screen) --- */
@@ -26,7 +29,10 @@ body {
     z-index: 1;
 }
 
-#map { width: 100%; height: 100%; }
+#map {
+    width: 100%;
+    height: 100%;
+}
 
 /* --- Search Bar (Floating Top) --- */
 .search-overlay {
@@ -46,8 +52,8 @@ body {
     border-radius: 50px;
     display: flex;
     align-items: center;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
-    border: 1px solid rgba(255,255,255,0.2);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .search-icon {
@@ -79,28 +85,38 @@ body {
     font-size: 15px;
 }
 
-#search-button:hover { background: var(--primary-dark); }
-#search-button:disabled { background: #cbd5e1; cursor: not-allowed; }
+#search-button:hover {
+    background: var(--primary-dark);
+}
 
-/* --- 🚗 Transport Mode Selector (The White Bubble) --- */
+#search-button:disabled {
+    background: #cbd5e1;
+    cursor: not-allowed;
+}
+
+/* --- Transport Mode Selector (The White Bubble) --- */
 #mode-selector {
     position: absolute;
-    top: 90px; /* Below the search bar */
+    top: 90px;
+    /* Below the search bar */
     left: 50%;
-    transform: translateX(-50%); /* Center horizontally */
-    
-    display: none; /* Hidden until route found */
-    flex-direction: row; /* Force Horizontal layout */
+    transform: translateX(-50%);
+    /* Center horizontally */
+
+    display: none;
+    /* Hidden until route found */
+    flex-direction: row;
+    /* Force Horizontal layout */
     align-items: center;
     justify-content: center;
     gap: 12px;
-    
+
     background: white;
     padding: 8px 12px;
     border-radius: 50px;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
     z-index: 1000;
-    
+
     /* Auto-width based on content */
     width: max-content;
     max-width: 90vw;
@@ -138,20 +154,21 @@ body {
 /* --- 📊 Route Stats (Distance & Time) --- */
 #route-stats {
     /* Hidden by default */
-    display: none !important; 
+    display: none !important;
     opacity: 0;
-    
+
     flex-direction: row;
     align-items: center;
-    background: #1e293b; 
+    background: #1e293b;
     color: white;
     padding: 0 16px;
-    height: 38px; 
+    height: 38px;
     border-radius: 20px;
     font-size: 14px;
     font-weight: 600;
     white-space: nowrap;
-    margin-left: 10px; /* Spacing from icons */
+    margin-left: 10px;
+    /* Spacing from icons */
     transition: opacity 0.3s ease;
 }
 
@@ -174,8 +191,174 @@ body {
 
 /* --- Mobile Responsiveness --- */
 @media (max-width: 600px) {
-    .search-overlay { top: 10px; width: 95%; }
-    #mode-selector { top: 80px; padding: 6px 10px; gap: 8px; }
-    .mode-btn { width: 34px; height: 34px; font-size: 16px; }
-    #route-stats { font-size: 12px; padding: 0 12px; height: 34px; }
+    .search-overlay {
+        top: 10px;
+        width: 95%;
+    }
+
+    #mode-selector {
+        top: 80px;
+        padding: 6px 10px;
+        gap: 8px;
+    }
+
+    .mode-btn {
+        width: 34px;
+        height: 34px;
+        font-size: 16px;
+    }
+
+    #route-stats {
+        font-size: 12px;
+        padding: 0 12px;
+        height: 34px;
+    }
+}
+
+/* --- Info Card (Bottom Sheet) --- */
+#info-card {
+    position: absolute;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+
+    width: 90%;
+    max-width: 500px;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+
+    padding: 20px;
+    border-radius: 20px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+
+    z-index: 1000;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+
+    /* Start hidden (slid down) */
+    opacity: 0;
+    transform: translate(-50%, 20px);
+    pointer-events: none;
+}
+
+#info-card.active {
+    opacity: 1;
+    transform: translate(-50%, 0);
+    pointer-events: all;
+}
+
+.info-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 10px;
+}
+
+#info-title {
+    margin: 0;
+    font-size: 1.4rem;
+    color: #1e293b;
+    font-weight: 700;
+}
+
+#close-info {
+    background: none;
+    border: none;
+    font-size: 24px;
+    color: #94a3b8;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+}
+
+.highlight-text {
+    font-size: 1.05rem;
+    color: #2563eb;
+    /* Blue */
+    font-weight: 500;
+    margin: 0 0 8px 0;
+    line-height: 1.5;
+}
+
+.sub-text {
+    font-size: 0.9rem;
+    color: #64748b;
+    /* Grey */
+    margin: 0;
+    font-style: italic;
+    line-height: 1.4;
+}
+
+/* --- Info Card (Bottom Left) --- */
+#info-card {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    /* Aligns to the left */
+    /* Removed: transform: translateX(-50%); */
+
+    width: 350px;
+    /* Fixed width looks neater on the side */
+    max-width: 90vw;
+
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+
+    padding: 20px;
+    border-radius: 20px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+
+    z-index: 1000;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+
+    /* Start hidden (slid down and invisible) */
+    opacity: 0;
+    transform: translateY(20px);
+    pointer-events: none;
+}
+
+#info-card.active {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: all;
+}
+
+/* ... keep the rest (headers, text) as they were ... */
+.info-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 10px;
+}
+
+#info-title {
+    margin: 0;
+    font-size: 1.4rem;
+    color: #1e293b;
+    font-weight: 700;
+}
+
+#close-info {
+    background: none;
+    border: none;
+    font-size: 24px;
+    color: #94a3b8;
+    cursor: pointer;
+}
+
+.highlight-text {
+    font-size: 1.05rem;
+    color: #2563eb;
+    font-weight: 500;
+    margin: 0 0 8px 0;
+    line-height: 1.5;
+}
+
+.sub-text {
+    font-size: 0.9rem;
+    color: #64748b;
+    margin: 0;
+    font-style: italic;
+    line-height: 1.4;
 }

@@ -38,48 +38,54 @@ class NLPService:
     @staticmethod
     def analyze_query(text):
         """
-        Uses LLM to Autocorrect, Normalize, and extract Context.
+        Uses LLM to:
+        1. Identify Intent (WEATHER, ROUTE, INFO)
+        2. Extract & Autocorrect Locations
+        3. Handle Context & Mixed Lists
+        4. Generate Answer & Summary PER LOCATION
         """
-        # Default fallback structure
-        result = {"intent": "WEATHER", "locations": [], "params": {}}
+        result = {
+            "intent": "INFO", 
+            "locations": [], 
+            "location_details": {}, # Stores info for each place: { "PlaceName": { "summary": "...", "answer": "..." } }
+            "params": {}
+        }
 
         if NLPService.HAS_LLM:
             try:
-                # --- THE AUTOCORRECT & CONTEXT PROMPT ---
+                # --- MASTER PROMPT ---
                 prompt = f"""
-                You are a Geospatial Query Corrector.
-                Input: "{text}"
+                You are a Geospatial Assistant.
+                User Input: "{text}"
                 
-                Task:
-                1. Identify the user's INTENT: "WEATHER", "ROUTE", or "NEARBY".
-                2. Extract locations and perform AUTOCORRECT on them.
+                Tasks:
+                1. Identify INTENT: "WEATHER", "ROUTE", "NEARBY", or "INFO" (General query).
+                
+                2. Extract Locations & Perform Autocorrect:
                    - Fix typos: "Banglore" -> "Bengaluru"
-                   - Resolve Aliases: "Bombay" -> "Mumbai", "Madras" -> "Chennai"
-                   - Contextual Disambiguation: If user says "Paris near Dallas", return "Paris". If just "Paris", return "Paris".
-                        Examples:
-                        - "Paris in Texas" -> ["Paris, Texas"]
-                        - "Paris France" -> ["Paris, France"]
-                        - "Hyderabad Pakistan vs Hyderabad India" -> ["Hyderabad, Pakistan", "Hyderabad, India"]
-                        - "Route from London Ontario to London UK" -> ["London, Ontario", "London, UK"]
-                        - "Banglore" -> ["Bengaluru"] (Autocorrect)
-
+                   - Resolve Aliases: "Bombay" -> "Mumbai"
                 
-                3. CRITICAL: Preserve TRAVEL ORDER for Routes.
-                   - "Bangalore to Delhi via Mumbai" -> ["Bengaluru", "Mumbai", "Delhi"]
-                   - "Trip from London to Paris stopping in Lyon" -> ["London", "Lyon", "Paris"]   
-                                      - If a city is followed by a Region/State/Country, MERGE them into one string with a comma.
-
+                3. CONTEXT FUSION (Critical):
+                   - If a city is followed by a Region/State/Country, MERGE them into one string with a comma.
                    - Apply context ONLY to the specific city it belongs to.
-                    Examples:
-                    - "Paris in Texas" -> ["Paris, Texas"]
-                    - "Bangalore and Madurai and Paris in Texas" -> ["Bengaluru", "Madurai", "Paris, Texas"]
-                    - "London UK and London Ontario" -> ["London, UK", "London, Ontario"]
-                    - "Rome Italy, Paris France and Barcelona" -> ["Rome, Italy", "Paris, France", "Barcelona"]  
-                           
-                Output JSON Format:
+                   - Example: "Paris in Texas" -> ["Paris, Texas"]
+                   - Example: "Bangalore and Madurai and Paris in Texas" -> ["Bengaluru", "Madurai", "Paris, Texas"]
+                
+                4. ROUTE ORDERING:
+                   - Preserve sequence: "From A to B via C" -> ["A", "C", "B"]
+                
+                5. GENERATE CONTENT (Per Location):
+                   - For EACH location found, provide a "summary" (1 sentence fact).
+                   - If the user asked a specific question (e.g. "Who founded X?"), put the answer in the "answer" field for that location.
+                
+                Output JSON:
                 {{
                   "intent": "string",
-                  "locations": ["CorrectedName1", "CorrectedName2"], or for Route "locations": ["StartLocation", "Waypoint", "EndLocation"],
+                  "locations": ["Loc1", "Loc2"],
+                  "location_details": {{
+                      "Loc1": {{ "summary": "Fact about Loc1", "answer": "Specific answer if relevant" }},
+                      "Loc2": {{ "summary": "Fact about Loc2", "answer": "" }}
+                  }},
                   "params": {{ "radius_km": 50 }}
                 }}
                 
@@ -90,7 +96,7 @@ class NLPService:
                     model="gemini-2.0-flash",
                     contents=prompt,
                     config=types.GenerateContentConfig(
-                        temperature=0.0, # 0.0 means strictly factual/deterministic
+                        temperature=0.3, 
                         response_mime_type="application/json"
                     )
                 )
@@ -105,26 +111,21 @@ class NLPService:
         if not result['locations'] and NLPService.nlp:
             doc = NLPService.nlp(text)
             locs = [ent.text for ent in doc.ents if ent.label_ == "GPE"]
-            # Deduplicate preserving order
             result['locations'] = list(dict.fromkeys(locs))
+            # No details in fallback
             
         return result
 
 # --- TEST BLOCK ---
 if __name__ == "__main__":
-    print("\n--- TESTING NLP AUTOCORRECT ---")
+    print("\n--- TESTING MASTER NLP SERVICE ---")
     
     queries = [
-        "tell me about Banglore",          # Typo Test
-        "weather in Bombay",               # Alias Test
-        "compare India and Austrailia",    # Typo Test
-        "route from Delh to Agra",          # Typo Test
-        "paris in texas",
-        "route from bangalore to delhi via mumbaai",  # Multiple Typos
-        "Paris in Texas",
-        "Route from London UK to London Ontario",
-        "Hyderabad in Pakistan",
-        "Bangalore and Madurai and Paris in Texas"
+        "tell me about Banglore", 
+        "route from bangalore to delhi via mumbaai",
+        "Bangalore and Madurai and Paris in Texas",
+        "Who founded Hyderabad in India?",
+        "india and England"
     ]
     
     for q in queries:
@@ -132,3 +133,4 @@ if __name__ == "__main__":
         res = NLPService.analyze_query(q)
         print(f"   Intent:    {res.get('intent')}")
         print(f"   Locations: {res.get('locations')}")
+        print(f"   Details:   {json.dumps(res.get('location_details'), indent=2)}")
