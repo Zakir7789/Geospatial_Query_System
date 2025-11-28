@@ -1,0 +1,6 @@
+# Dependencies
+flask
+psycopg2-binary
+spacy
+requests
+python-dotenv

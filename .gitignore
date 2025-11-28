@@ -1,0 +1,8 @@
+*.md
+*.xml
+.env
+__pycache__/
+instance/
+.vscode/
+venv/
+*.pyc
