@@ -1,3 +1,4 @@
+﻿console.log("App Started");
 let map;
 let geocoder;
 let markers = [];
@@ -15,50 +16,82 @@ const activeStyle = {
 };
 
 function initMap() {
-    console.log("initMap() started...");
-
-    // Default View: India
-    const defaultLoc = { lat: 20.5937, lng: 78.9629 };
-
-    map = new google.maps.Map(document.getElementById("map"), {
-        center: defaultLoc,
-        zoom: 4,
-        disableDefaultUI: true,
-        mapId: 'f85aac46be23c13d1254f53d',
-    });
-
-    geocoder = new google.maps.Geocoder();
-    directionsService = new google.maps.DirectionsService();
-    directionsRenderer = new google.maps.DirectionsRenderer({ map: map, suppressMarkers: false });
-
-    // Layers & Styles
-    countryLayer = map.getFeatureLayer('COUNTRY');
-    stateLayer = map.getFeatureLayer('ADMINISTRATIVE_AREA_LEVEL_1');
-    cityLayer = map.getFeatureLayer('LOCALITY');
-    [countryLayer, stateLayer, cityLayer].forEach(layer => setupLayerEvents(layer));
-    applyStyles();
-
-    // Listeners
-    document.getElementById('search-button').addEventListener('click', performSearch);
-    document.getElementById('search-input').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') performSearch();
-    });
-
-    // Mode Buttons
-    document.querySelectorAll('.mode-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
-            e.currentTarget.classList.add('active');
-            const mode = e.currentTarget.getAttribute('data-mode');
-            if (currentLocations.length >= 2) calculateRoute(currentLocations, mode, false);
+    try {
+        const defaultLoc = { lat: 20.5937, lng: 78.9629 };
+        map = new google.maps.Map(document.getElementById("map"), {
+            center: defaultLoc, zoom: 4, disableDefaultUI: true, mapId: 'f85aac46be23c13d1254f53d',
         });
-    });
+
+        geocoder = new google.maps.Geocoder();
+        directionsService = new google.maps.DirectionsService();
+        directionsRenderer = new google.maps.DirectionsRenderer({ map: map, suppressMarkers: false });
+
+        countryLayer = map.getFeatureLayer('COUNTRY');
+        stateLayer = map.getFeatureLayer('ADMINISTRATIVE_AREA_LEVEL_1');
+        cityLayer = map.getFeatureLayer('LOCALITY');
+        [countryLayer, stateLayer, cityLayer].forEach(layer => setupLayerEvents(layer));
+        applyStyles();
+
+        // Listeners
+        document.getElementById('search-button').addEventListener('click', performSearch);
+        document.getElementById('search-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') performSearch();
+        });
+
+        // Mode Buttons (Manual Toggle)
+        document.querySelectorAll('.mode-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+                e.currentTarget.classList.add('active');
+                const mode = e.currentTarget.getAttribute('data-mode');
+                if (currentLocations.length >= 2) calculateRoute(currentLocations, mode, false);
+            });
+        });
+
+        setupVoiceSearch();
+
+    } catch (e) {
+        console.error("Map Initialization Error:", e);
+        showToast("Failed to initialize map.", "error");
+    }
+}
+window.initMap = initMap;
+
+// --- TOAST NOTIFICATION ---
+function showToast(message, type = 'error') {
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+    const toast = document.createElement('div');
+    toast.className = `toast ${type === 'success' ? 'success' : ''}`;
+    toast.innerText = message;
+    container.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+}
+
+// --- VOICE SEARCH ---
+function setupVoiceSearch() {
+    if (!('webkitSpeechRecognition' in window)) return;
+    const recognition = new webkitSpeechRecognition();
+    recognition.continuous = false;
+    recognition.lang = 'en-US';
+    const voiceBtn = document.getElementById('voice-trigger');
+    const searchInput = document.getElementById('search-input');
+
+    if (voiceBtn) {
+        voiceBtn.addEventListener('click', () => recognition.start());
+        recognition.onstart = () => voiceBtn.classList.add('listening');
+        recognition.onend = () => voiceBtn.classList.remove('listening');
+        recognition.onresult = (event) => {
+            searchInput.value = event.results[0][0].transcript;
+            performSearch();
+        };
+    }
 }
 
 // --- GLOBAL: Close Info Card ---
 window.closeInfoCard = function () {
-    const card = document.getElementById('info-card');
-    if (card) card.classList.remove('active');
+    const container = document.getElementById('cards-container');
+    if (container) container.innerHTML = '';
 }
 
 // --- MAIN SEARCH ---
@@ -79,92 +112,205 @@ async function performSearch() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ query: query })
         });
+
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         const data = await response.json();
 
         clearMap();
 
-        // --- 1. ROUTE MODE (Prioritize Routing if requested) ---
+        // --- ROUTE MODE ---
         if (data.intent === 'ROUTE' && data.results.length >= 2) {
             currentLocations = data.results.map(r => r.city_name);
-            console.log(`Routing via: ${currentLocations.join(' -> ')}`);
 
-            document.getElementById('mode-selector').style.display = 'flex';
+            // Show Standard Mode Selector (Car / Air)
+            const modeSelector = document.getElementById('mode-selector');
+            if (modeSelector) {
+                modeSelector.style.display = 'flex';
+                modeSelector.classList.remove('hidden');
+            }
+
+            // Default to Driving
             switchModeButton('DRIVING');
             calculateRoute(currentLocations, 'DRIVING', true);
 
+            // Show Stats
+            const stats = document.getElementById('route-stats');
+            if (stats) stats.classList.remove('hidden');
+
         } else {
-            // --- 2. INFO / NORMAL MODE ---
-            document.getElementById('mode-selector').style.display = 'none';
-            document.getElementById('route-stats').classList.remove('show-stats');
+            // --- INFO MODE ---
+            const modeSelector = document.getElementById('mode-selector');
+            if (modeSelector) modeSelector.style.display = 'none';
 
             const bounds = new google.maps.LatLngBounds();
             const promises = [];
 
-            // Loop through results (e.g. Bangalore, Mysore)
             for (const loc of data.results) {
-                // Pass the specific answer/summary for THIS location to the helper
                 promises.push(geocodeAndHighlight(loc.city_name, bounds, loc.ai_answer, loc.ai_summary));
             }
 
             const results = await Promise.all(promises);
 
             if (!results.includes(true)) {
-                alert("No location found.");
-            } else if (!bounds.isEmpty()) {
-                map.fitBounds(bounds);
-
-                // If there is exactly one location, open its card automatically
-                if (data.results.length === 1) {
-                    const loc = data.results[0];
-                    showInfoCard(loc.city_name, loc.ai_answer, loc.ai_summary);
-                }
+                showToast("No location found.", "error");
+            } else {
+                renderCards(data.results);
+                if (!bounds.isEmpty()) map.fitBounds(bounds);
             }
         }
 
     } catch (e) {
         console.error("Search failed:", e);
-        alert("An error occurred.");
+        showToast("Analysis failed. Please try again.", "error");
     } finally {
         btn.innerText = "Analyze";
         btn.disabled = false;
     }
 }
 
-// --- INFO CARD FUNCTION ---
-function showInfoCard(title, answer, summary) {
-    const card = document.getElementById('info-card');
-    if (!card) return;
+// --- CARDS LOGIC ---
+function renderCards(results) {
+    const container = document.getElementById('cards-container');
+    container.innerHTML = '';
 
-    document.getElementById('info-title').innerText = title;
+    // 1. COMPARISON CHART (Optional)
+    const validDataCities = results.filter(city => city.population !== undefined && city.population > 0);
+    if (validDataCities.length >= 2) {
+        const chartCard = document.createElement('div');
+        chartCard.className = 'info-card';
 
-    // Logic: Use Answer if available, else Summary, else Default text
-    let content = answer;
-    if (!content && summary) content = summary;
-    if (!content) content = "Location identified.";
+        const chartHeader = document.createElement('div');
+        chartHeader.className = 'info-header';
+        const chartTitle = document.createElement('h2');
+        chartTitle.innerText = "Comparison Analysis";
+        chartHeader.appendChild(chartTitle);
+        chartCard.appendChild(chartHeader);
 
-    document.getElementById('info-answer').innerText = content;
-    // Show summary as subtext only if we have both answer AND summary
-    document.getElementById('info-summary').innerText = (answer && summary) ? summary : "";
+        const chartContent = document.createElement('div');
+        chartContent.className = 'card-content';
+        const canvas = document.createElement('canvas');
+        canvas.style.width = '100%';
+        canvas.style.maxHeight = '150px';
+        chartContent.appendChild(canvas);
+        chartCard.appendChild(chartContent);
+        container.appendChild(chartCard);
 
-    card.classList.add('active');
+        const labels = validDataCities.map(r => r.city_name);
+        const dataPoints = validDataCities.map(r => r.population);
+
+        new Chart(canvas, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Population',
+                    data: dataPoints,
+                    backgroundColor: 'rgba(37, 99, 235, 0.5)',
+                    borderColor: 'rgba(37, 99, 235, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: { beginAtZero: true, ticks: { display: false } },
+                    x: { ticks: { font: { size: 10 } } }
+                }
+            }
+        });
+    }
+
+    results.forEach(loc => {
+        // INFO CARD
+        const infoCard = document.createElement('div');
+        infoCard.className = 'info-card';
+        infoCard.innerHTML = `<div class="info-header"><h2>${loc.city_name}</h2></div>`;
+
+        const contentWrapper = document.createElement('div');
+        contentWrapper.className = 'card-content';
+        contentWrapper.innerHTML = `
+            <p class="highlight-text">${loc.ai_answer || loc.ai_summary || "Location identified."}</p>
+            ${loc.ai_answer && loc.ai_summary ? `<p class="sub-text">${loc.ai_summary}</p>` : ''}
+        `;
+        infoCard.appendChild(contentWrapper);
+        container.appendChild(infoCard);
+
+        // WEATHER CARD
+        if (loc.weather) {
+            const w = loc.weather;
+            const weatherCard = document.createElement('div');
+            weatherCard.className = 'info-card';
+            weatherCard.innerHTML = `
+                <div class="info-header"><h2>Weather in ${loc.city_name}</h2></div>
+                <div class="weather-section">
+                    <div class="weather-temp">${w.temperature}°C</div>
+                    <div class="weather-details">
+                        <span>${w.condition_text}</span>
+                        <span>Wind: ${w.windspeed} km/h</span>
+                    </div>
+                </div>
+            `;
+            container.appendChild(weatherCard);
+        }
+
+        // RAINFALL CHART (NEW FEATURE)
+        if (loc.rainfall_history) {
+            const rainCard = document.createElement('div');
+            rainCard.className = 'info-card';
+            rainCard.innerHTML = `<div class="info-header"><h2>Rainfall (Last 5 Days)</h2></div>`;
+
+            const chartDiv = document.createElement('div');
+            chartDiv.className = 'card-content';
+            const canvas = document.createElement('canvas');
+            canvas.style.maxHeight = '140px';
+            chartDiv.appendChild(canvas);
+            rainCard.appendChild(chartDiv);
+            container.appendChild(rainCard);
+
+            new Chart(canvas, {
+                type: 'bar',
+                data: {
+                    labels: loc.rainfall_history.dates.map(d => d.slice(5)), // MM-DD
+                    datasets: [{
+                        label: 'Precipitation (mm)',
+                        data: loc.rainfall_history.values,
+                        backgroundColor: '#60a5fa'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true } }
+                }
+            });
+        }
+    });
 }
 
 // --- ROUTING LOGIC ---
 function calculateRoute(locationList, mode, isAutoSwitchAllowed) {
+    // Clear previous
     flightPaths.forEach(p => p.setMap(null));
     flightPaths = [];
     directionsRenderer.setMap(null);
 
+    // MANUAL AIR MODE (Red Geodesic Lines)
     if (mode === 'AIR') {
         drawMultiHopAirRoute(locationList);
         return;
     }
 
+    // DRIVING MODE
     directionsRenderer.setMap(map);
     const origin = locationList[0];
     const destination = locationList[locationList.length - 1];
-
     const waypoints = [];
+
     if (locationList.length > 2) {
         for (let i = 1; i < locationList.length - 1; i++) {
             waypoints.push({ location: locationList[i], stopover: true });
@@ -186,31 +332,31 @@ function calculateRoute(locationList, mode, isAutoSwitchAllowed) {
                 totalSec += leg.duration.value;
             });
             updateStatsFormatted(totalDist, totalSec);
-        } else if (status === 'ZERO_RESULTS' && isAutoSwitchAllowed && mode === 'DRIVING') {
-            switchModeButton('AIR');
-            drawMultiHopAirRoute(locationList);
         } else {
-            alert('No route found for this mode.');
+            showToast('No driving route found.', 'error');
         }
     });
 }
 
-// --- HELPER: Air Route ---
+// --- MANUAL AIR ROUTE (The "Via" Feature) ---
 async function drawMultiHopAirRoute(locations) {
     const bounds = new google.maps.LatLngBounds();
     let totalDistKm = 0;
     const coords = [];
 
+    // Geocode all points
     for (const locName of locations) {
         const c = await geocodeLocation(locName);
         if (c) { coords.push(c); bounds.extend(c); }
     }
     if (coords.length < 2) return;
 
+    // Draw Lines A -> B -> C
     for (let i = 0; i < coords.length - 1; i++) {
         const start = coords[i], end = coords[i + 1];
         const line = new google.maps.Polyline({
-            path: [start, end], geodesic: true, strokeColor: '#ef4444', strokeOpacity: 0.8, strokeWeight: 4,
+            path: [start, end], geodesic: true,
+            strokeColor: '#ef4444', strokeOpacity: 0.8, strokeWeight: 4,
             icons: [{ icon: { path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW, scale: 4, strokeColor: '#fff', fillColor: '#ef4444', fillOpacity: 1 }, offset: '50%' }],
             map: map
         });
@@ -219,8 +365,9 @@ async function drawMultiHopAirRoute(locations) {
     }
     map.fitBounds(bounds);
 
+    // Approximate Flight Time (800km/h + 1hr layover per stop)
     const flightHours = totalDistKm / 800;
-    const totalMinutes = Math.round((flightHours * 60) + ((locations.length - 1) * 60));
+    const totalMinutes = Math.round((flightHours * 60) + ((locations.length - 2) * 60)); // Extra time for stops
     const h = Math.floor(totalMinutes / 60), m = totalMinutes % 60;
     updateStatsText(`${Math.round(totalDistKm).toLocaleString()} km`, h > 0 ? `~${h} hr ${m} min` : `~${m} min`);
 }
@@ -233,10 +380,11 @@ function updateStatsFormatted(meters, seconds) {
 
 function updateStatsText(dist, time) {
     const statsBox = document.getElementById('route-stats');
-    document.getElementById('route-dist').innerText = dist;
-    document.getElementById('route-time').innerText = time;
-    statsBox.classList.remove('hidden');
-    statsBox.classList.add('show-stats');
+    if (statsBox) {
+        document.getElementById('route-dist').innerText = dist;
+        document.getElementById('route-time').innerText = time;
+        statsBox.classList.remove('hidden');
+    }
 }
 
 function switchModeButton(mode) {
@@ -253,7 +401,7 @@ function geocodeLocation(address) {
     });
 }
 
-// --- UPDATED HELPER: Accepts Info Data ---
+// --- HELPER: Geocode & Highlight (Info Mode) ---
 function geocodeAndHighlight(address, bounds, aiAnswer, aiSummary) {
     return new Promise((resolve) => {
         geocoder.geocode({ address: address }, (results, status) => {
@@ -268,15 +416,7 @@ function geocodeAndHighlight(address, bounds, aiAnswer, aiSummary) {
                     title: address,
                     animation: google.maps.Animation.DROP
                 });
-
-                // --- CLICK LISTENER ---
-                // Clicking the marker opens the card for THIS specific place
-                marker.addListener('click', () => {
-                    showInfoCard(address, aiAnswer, aiSummary);
-                });
-
                 markers.push(marker);
-
                 if (res.place_id) highlightedPlaceIds.add(res.place_id);
                 applyStyles();
                 resolve(true);
@@ -295,9 +435,8 @@ function clearMap() {
     directionsRenderer.setDirections({ routes: [] });
     flightPaths.forEach(p => p.setMap(null));
     flightPaths = [];
-
-    // Reset UI
-    document.getElementById('route-stats').classList.remove('show-stats');
+    const stats = document.getElementById('route-stats');
+    if (stats) stats.classList.add('hidden');
     closeInfoCard();
 }
 

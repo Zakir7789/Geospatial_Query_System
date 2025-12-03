@@ -1,32 +1,31 @@
 :root {
-    --primary: #2563eb;
-    --primary-dark: #1d4ed8;
-    --bg-app: #f8fafc;
-    --text-main: #1e293b;
-    --text-light: #64748b;
+    --primary-color: #2563eb;
+    --secondary-color: #1e40af;
+    --background-color: #f3f4f6;
+    --text-color: #1f2937;
+    --card-bg: rgba(255, 255, 255, 0.9);
     --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }
 
-* {
-    box-sizing: border-box;
-}
-
+html,
 body {
+    height: 100%;
+    width: 100%;
     margin: 0;
-    height: 100vh;
+    padding: 0;
     font-family: 'Inter', sans-serif;
-    background: var(--bg-app);
-    color: var(--text-main);
     overflow: hidden;
-    /* Prevent scrolling */
+    background-color: var(--background-color);
 }
 
-/* --- Map Section (Full Screen) --- */
+/* --- MAP --- */
 #map-section {
+    position: absolute;
+    top: 0;
+    left: 0;
     width: 100%;
-    height: 100vh;
-    position: relative;
-    z-index: 1;
+    height: 100%;
+    z-index: 0;
 }
 
 #map {
@@ -34,7 +33,7 @@ body {
     height: 100%;
 }
 
-/* --- Search Bar (Floating Top) --- */
+/* --- SEARCH OVERLAY --- */
 .search-overlay {
     position: absolute;
     top: 20px;
@@ -46,319 +45,306 @@ body {
 }
 
 .search-box {
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(10px);
-    padding: 8px;
-    border-radius: 50px;
     display: flex;
     align-items: center;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: white;
+    padding: 10px 15px;
+    border-radius: 50px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s;
 }
 
-.search-icon {
-    width: 20px;
-    height: 20px;
-    margin-left: 15px;
-    stroke: var(--text-light);
+.search-box:focus-within {
+    transform: scale(1.02);
 }
 
 #search-input {
-    border: none;
-    background: transparent;
-    padding: 12px;
     flex: 1;
-    font-size: 16px;
+    border: none;
     outline: none;
-    color: var(--text-main);
+    font-size: 16px;
+    color: var(--text-color);
+    padding: 0 10px;
 }
 
 #search-button {
-    background: var(--primary);
+    background: var(--primary-color);
     color: white;
     border: none;
-    padding: 10px 24px;
-    border-radius: 40px;
+    padding: 8px 20px;
+    border-radius: 20px;
     font-weight: 500;
     cursor: pointer;
     transition: background 0.2s;
-    font-size: 15px;
 }
 
 #search-button:hover {
-    background: var(--primary-dark);
+    background: var(--secondary-color);
 }
 
 #search-button:disabled {
-    background: #cbd5e1;
+    background: #9ca3af;
     cursor: not-allowed;
 }
 
-/* --- Transport Mode Selector (The White Bubble) --- */
-#mode-selector {
-    position: absolute;
-    top: 90px;
-    /* Below the search bar */
-    left: 50%;
-    transform: translateX(-50%);
-    /* Center horizontally */
-
-    display: none;
-    /* Hidden until route found */
-    flex-direction: row;
-    /* Force Horizontal layout */
-    align-items: center;
-    justify-content: center;
-    gap: 12px;
-
-    background: white;
-    padding: 8px 12px;
-    border-radius: 50px;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
-    z-index: 1000;
-
-    /* Auto-width based on content */
-    width: max-content;
-    max-width: 90vw;
-}
-
-/* Mode Buttons (Icons) */
-.mode-btn {
+/* --- VOICE TRIGGER --- */
+#voice-trigger {
+    background: transparent;
     border: none;
-    background: #f1f5f9;
-    width: 38px;
-    height: 38px;
-    border-radius: 50%;
     cursor: pointer;
-    font-size: 18px;
+    color: #6b7280;
+    padding: 8px;
+    border-radius: 50%;
+    margin-right: 5px;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.2s ease;
+    transition: all 0.2s;
+    font-size: 1.2rem;
+}
+
+#voice-trigger:hover {
+    background: #f3f4f6;
+    color: var(--primary-color);
+}
+
+#voice-trigger.listening {
+    color: #ef4444;
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+    }
+
+    70% {
+        box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+    }
+}
+
+/* --- CARDS CONTAINER (WIDGET DECK) --- */
+#cards-container {
+    position: absolute;
+    bottom: 20px;
+    left: 0;
+    width: 100%;
+    display: flex;
+    flex-direction: row;
+    align-items: flex-end;
+    gap: 0;
+    z-index: 10;
+    overflow-x: auto;
+    white-space: nowrap;
+    padding: 0 20px 20px 20px;
+    box-sizing: border-box;
+    scrollbar-width: none;
+    pointer-events: none;
+}
+
+#cards-container::-webkit-scrollbar {
+    display: none;
+}
+
+.info-card {
+    flex: 0 0 auto;
+    background: rgba(255, 255, 255, 0.6);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-radius: 12px;
+    padding: 15px;
+    width: 320px;
+    height: 200px;
+    margin-right: 15px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    transition: transform 0.2s ease;
+    pointer-events: auto;
+    display: flex;
+    flex-direction: column;
+    animation: slideUp 0.4s ease-out;
+}
+
+.info-card:hover {
+    transform: translateY(-5px);
+    background: rgba(255, 255, 255, 0.8);
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(100%);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.info-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    padding-bottom: 5px;
+    margin-bottom: 8px;
     flex-shrink: 0;
 }
 
+.info-header h2 {
+    margin: 0;
+    font-size: 18px;
+    color: var(--text-color);
+    font-weight: 600;
+}
+
+.card-content {
+    flex-grow: 1;
+    overflow-y: auto;
+    padding-right: 5px;
+    white-space: normal;
+}
+
+.highlight-text {
+    font-size: 14px;
+    color: var(--primary-color);
+    font-weight: 500;
+    margin: 0 0 8px 0;
+    line-height: 1.4;
+}
+
+.sub-text {
+    font-size: 13px;
+    color: #4b5563;
+    margin: 0;
+    line-height: 1.5;
+}
+
+/* --- WEATHER SECTION --- */
+.weather-section {
+    background: rgba(37, 99, 235, 0.1);
+    border-radius: 10px;
+    padding: 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 5px;
+}
+
+.weather-temp {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--primary-color);
+}
+
+.weather-details {
+    display: flex;
+    flex-direction: column;
+    font-size: 12px;
+    color: #4b5563;
+}
+
+/* --- MODE SELECTOR --- */
+#mode-selector {
+    position: absolute;
+    top: 90px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: white;
+    padding: 5px;
+    border-radius: 30px;
+    display: none;
+    gap: 5px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    z-index: 1000;
+}
+
+.mode-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 18px;
+    transition: background 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
 .mode-btn:hover {
-    background: #e2e8f0;
-    transform: scale(1.1);
+    background: #f3f4f6;
 }
 
 .mode-btn.active {
-    background: var(--primary);
+    background: var(--primary-color);
     color: white;
-    box-shadow: 0 2px 6px rgba(37, 99, 235, 0.4);
 }
 
-/* --- 📊 Route Stats (Distance & Time) --- */
-/* This ensures it sits nicely to the right of the icons */
-/* --- 📊 Route Stats (Distance & Time) --- */
 #route-stats {
-    /* Hidden by default */
-    display: none !important;
-    opacity: 0;
-
-    flex-direction: row;
+    display: flex;
     align-items: center;
-    background: #1e293b;
-    color: white;
-    padding: 0 16px;
-    height: 38px;
-    border-radius: 20px;
-    font-size: 14px;
-    font-weight: 600;
     white-space: nowrap;
-    margin-left: 10px;
-    /* Spacing from icons */
-    transition: opacity 0.3s ease;
+    padding: 0 15px;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-color);
+    border-left: 1px solid #e5e7eb;
+    margin-left: 5px;
 }
 
-/* --- THE FIX: High Priority Visibility Class --- */
-#route-stats.show-stats {
-    display: flex !important;
-    opacity: 1 !important;
+.hidden {
+    display: none !important;
 }
 
 .divider {
     margin: 0 8px;
-    color: #94a3b8;
-    font-weight: 300;
+    color: #9ca3af;
 }
 
-/* --- Dashboard Section (Hidden) --- */
-#dashboard-section {
-    display: none !important;
-}
-
-/* --- Mobile Responsiveness --- */
-@media (max-width: 600px) {
-    .search-overlay {
-        top: 10px;
-        width: 95%;
-    }
-
-    #mode-selector {
-        top: 80px;
-        padding: 6px 10px;
-        gap: 8px;
-    }
-
-    .mode-btn {
-        width: 34px;
-        height: 34px;
-        font-size: 16px;
-    }
-
-    #route-stats {
-        font-size: 12px;
-        padding: 0 12px;
-        height: 34px;
-    }
-}
-
-/* --- Info Card (Bottom Sheet) --- */
-#info-card {
-    position: absolute;
-    bottom: 30px;
-    left: 50%;
-    transform: translateX(-50%);
-
-    width: 90%;
-    max-width: 500px;
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(10px);
-
-    padding: 20px;
-    border-radius: 20px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-    border: 1px solid rgba(255, 255, 255, 0.5);
-
-    z-index: 1000;
-    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-
-    /* Start hidden (slid down) */
-    opacity: 0;
-    transform: translate(-50%, 20px);
-    pointer-events: none;
-}
-
-#info-card.active {
-    opacity: 1;
-    transform: translate(-50%, 0);
-    pointer-events: all;
-}
-
-.info-header {
+/* --- TOAST NOTIFICATIONS --- */
+#toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
     display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 10px;
+    flex-direction: column;
+    gap: 10px;
 }
 
-#info-title {
-    margin: 0;
-    font-size: 1.4rem;
-    color: #1e293b;
-    font-weight: 700;
-}
-
-#close-info {
-    background: none;
-    border: none;
-    font-size: 24px;
-    color: #94a3b8;
-    cursor: pointer;
-    padding: 0;
-    line-height: 1;
-}
-
-.highlight-text {
-    font-size: 1.05rem;
-    color: #2563eb;
-    /* Blue */
+.toast {
+    background: #ef4444;
+    color: white;
+    padding: 12px 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    font-size: 14px;
     font-weight: 500;
-    margin: 0 0 8px 0;
-    line-height: 1.5;
-}
-
-.sub-text {
-    font-size: 0.9rem;
-    color: #64748b;
-    /* Grey */
-    margin: 0;
-    font-style: italic;
-    line-height: 1.4;
-}
-
-/* --- Info Card (Bottom Left) --- */
-#info-card {
-    position: absolute;
-    bottom: 20px;
-    left: 20px;
-    /* Aligns to the left */
-    /* Removed: transform: translateX(-50%); */
-
-    width: 350px;
-    /* Fixed width looks neater on the side */
-    max-width: 90vw;
-
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(10px);
-
-    padding: 20px;
-    border-radius: 20px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-    border: 1px solid rgba(255, 255, 255, 0.5);
-
-    z-index: 1000;
-    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-
-    /* Start hidden (slid down and invisible) */
-    opacity: 0;
-    transform: translateY(20px);
-    pointer-events: none;
-}
-
-#info-card.active {
-    opacity: 1;
-    transform: translateY(0);
-    pointer-events: all;
-}
-
-/* ... keep the rest (headers, text) as they were ... */
-.info-header {
+    animation: slideInRight 0.3s ease-out;
     display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 10px;
+    align-items: center;
+    gap: 10px;
 }
 
-#info-title {
-    margin: 0;
-    font-size: 1.4rem;
-    color: #1e293b;
-    font-weight: 700;
+.toast.success {
+    background: #10b981;
 }
 
-#close-info {
-    background: none;
-    border: none;
-    font-size: 24px;
-    color: #94a3b8;
-    cursor: pointer;
-}
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
 
-.highlight-text {
-    font-size: 1.05rem;
-    color: #2563eb;
-    font-weight: 500;
-    margin: 0 0 8px 0;
-    line-height: 1.5;
-}
-
-.sub-text {
-    font-size: 0.9rem;
-    color: #64748b;
-    margin: 0;
-    font-style: italic;
-    line-height: 1.4;
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
 }

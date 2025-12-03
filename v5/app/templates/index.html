@@ -5,64 +5,41 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GeoAnalytics Dashboard</title>
-
-    <!-- Modern Font -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="../static/css/style.css">
-
-    <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-    <!-- Google Maps API -->
-    <!-- REPLACE YOUR_API_KEY_HERE -->
     <script async
-        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDg8FpdYUn5JpbaW38Ob8c3vwSROvtZJbQ&callback=initMap">
-        </script>
-    <script src="../static/js/dashboard.js" defer></script>
+        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDg8FpdYUn5JpbaW38Ob8c3vwSROvtZJbQ&libraries=places,visualization&callback=initMap"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 
 <body>
-
-    <!-- Floating Search Bar -->
-    <div class="search-overlay">
-        <div class="search-box">
-            <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="11" cy="11" r="8"></circle>
-                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-            </svg>
-            <input type="text" id="search-input"
-                placeholder="Compare locations (e.g., 'India vs Australia', 'USA and Canada')...">
-            <button id="search-button">Analyze</button>
-        </div>
-    </div>
-
-    <!-- Mode Selector -->
-    <div id="mode-selector">
-        <button class="mode-btn active" data-mode="DRIVING" title="Road (Driving)">🚗</button>
-        <button class="mode-btn" data-mode="WALKING" title="Walking">🚶</button>
-        <button class="mode-btn" data-mode="AIR" title="Direct Line (Air)">✈️</button>
-        <div id="route-stats" class="hidden">
-            <span id="route-dist">0 km</span>
-            <span class="divider">•</span>
-            <span id="route-time">0 min</span>
-        </div>
-    </div>
-
-    <!-- Top Section: Map -->
     <div id="map-section">
         <div id="map"></div>
-        <div id="map-tooltip" class="hidden">Click highlighted area to view data</div>
     </div>
 
-    <div id="info-card" class="hidden">
-        <div class="info-header">
-            <h2 id="info-title">Location Name</h2>
-            <button id="close-info" onclick="closeInfoCard()">×</button>
+    <div class="search-overlay">
+        <div class="search-box">
+            <button id="voice-trigger" title="Voice Search">🎤</button>
+            <input type="text" id="search-input" placeholder="Ask anything (e.g. 'Route from Bangalore to Delhi')...">
+            <button id="search-button">Analyze</button>
         </div>
-        <p id="info-answer" class="highlight-text">Direct Answer goes here...</p>
-        <p id="info-summary" class="sub-text">Interesting fact goes here...</p>
+
+        <div id="mode-selector">
+            <button class="mode-btn active" data-mode="DRIVING" title="Driving">🚗</button>
+            <button class="mode-btn" data-mode="AIR" title="Direct Line (Air)">✈️</button>
+
+            <div id="route-stats" class="hidden">
+                <span id="route-dist">0 km</span>
+                <span class="divider">|</span>
+                <span id="route-time">0 min</span>
+            </div>
+        </div>
     </div>
 
+    <div id="cards-container"></div>
+    <div id="toast-container"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
 </body>
 
 </html>

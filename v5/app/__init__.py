@@ -1,7 +1,9 @@
 # Flask App Factory & DB Connection Pool
-from flask import Flask
+from flask import Flask, jsonify
+from werkzeug.exceptions import HTTPException
 import psycopg2.pool
 import os
+import logging
 from dotenv import load_dotenv
 
 # Load .env variables
@@ -13,7 +15,10 @@ db_pool = None
 def create_app():
     app = Flask(__name__)
     
-    # Initialize DB Pool (Min 1 connection, Max 10)
+    # Configure Logging
+    logging.basicConfig(level=logging.INFO)
+    
+    # Initialize DB Pool (Min 1, Max 10)
     global db_pool
     try:
         db_pool = psycopg2.pool.SimpleConnectionPool(
@@ -24,13 +29,24 @@ def create_app():
             port=os.getenv("DB_PORT", "5432"),
             database=os.getenv("DB_NAME", "geospatial_db")
         )
-        print("✅ Database connection pool created.")
+        app.logger.info("Database connection pool created.")
     except Exception as e:
-        print(f"❌ Error creating DB pool: {e}")
+        app.logger.error(f"Error creating DB pool: {e}")
 
     # Register Routes
     from app.routes import main_bp
     app.register_blueprint(main_bp)
+
+    # Global Error Handler
+    @app.errorhandler(Exception)
+    def handle_exception(e):
+        # Handle HTTP exceptions (404, 403, etc.) without logging stack traces
+        if isinstance(e, HTTPException):
+            return jsonify({"error": e.description}), e.code
+        
+        # Only log real crashes
+        app.logger.error(f"Unhandled Exception: {e}", exc_info=True)
+        return jsonify({"status": "error", "message": "Internal Server Error"}), 500
 
     return app
 
